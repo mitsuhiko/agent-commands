@@ -304,31 +304,26 @@ async function main() {
   const token = getAuthToken();
   const parsed = parseIssueInput(input);
 
-  let issueUrl;
-
-  if (parsed.shortId) {
-    const org = cliOrg || parsed.org;
-    if (!org) {
-      console.error("Error: Short ID requires --org flag");
-      console.error("Example: fetch-issue.js MYPROJ-123 --org myorg");
-      process.exit(1);
-    }
-    issueUrl = `${SENTRY_API_BASE}/organizations/${org}/issues/?query=${encodeURIComponent(parsed.shortId)}&limit=1`;
-  } else {
-    issueUrl = `${SENTRY_API_BASE}/issues/${parsed.issueId}/`;
-  }
-
   try {
     let issue;
 
     if (parsed.shortId) {
-      const results = await fetchJson(issueUrl, token);
-      if (!results || results.length === 0) {
+      const org = cliOrg || parsed.org;
+      if (!org) {
+        console.error("Error: Short ID requires --org flag");
+        console.error("Example: fetch-issue.js MYPROJ-123 --org myorg");
+        process.exit(1);
+      }
+      // Use the shortids endpoint to resolve the short ID
+      const shortIdUrl = `${SENTRY_API_BASE}/organizations/${org}/shortids/${encodeURIComponent(parsed.shortId)}/`;
+      const result = await fetchJson(shortIdUrl, token);
+      if (!result || !result.group) {
         console.error(`Error: Issue ${parsed.shortId} not found`);
         process.exit(1);
       }
-      issue = results[0];
+      issue = result.group;
     } else {
+      const issueUrl = `${SENTRY_API_BASE}/issues/${parsed.issueId}/`;
       issue = await fetchJson(issueUrl, token);
     }
 
